@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>タスク管理ボード</title>
+  <style>
+    /* ===== 全体のリセットと基本設定 ===== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+      background-color: #1a6b9a;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* ===== ヘッダー ===== */
+    header {
+      color: white;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 2px;
+    }
+
+    /* ===== ボード全体（3列を横並びに） ===== */
+    #board {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* スマホでは縦並びにする */
+    @media (max-width: 700px) {
+      #board {
+        flex-direction: column;
+      }
+    }
+
+    /* ===== 各列（カラム） ===== */
+    .column {
+      flex: 1;
+      background-color: #ebecf0;
+      border-radius: 10px;
+      padding: 12px;
+      min-width: 0;
+    }
+
+    /* 列のタイトル部分 */
+    .column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .column-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #172b4d;
+    }
+
+    /* カード枚数バッジ */
+    .card-count {
+      background-color: #dfe1e6;
+      color: #5e6c84;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    /* ===== カード ===== */
+    .card {
+      background-color: white;
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      position: relative;
+    }
+
+    .card:hover {
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
+
+    /* カードのタイトルテキスト（クリックで編集できる） */
+    .card-title {
+      font-size: 14px;
+      color: #172b4d;
+      line-height: 1.5;
+      word-break: break-word;
+      cursor: pointer;
+      min-height: 20px;
+    }
+
+    .card-title:hover {
+      color: #0052cc;
+    }
+
+    /* 編集中のテキストエリア */
+    .card-title-input {
+      width: 100%;
+      font-size: 14px;
+      color: #172b4d;
+      border: 2px solid #0052cc;
+      border-radius: 4px;
+      padding: 4px 6px;
+      resize: none;
+      font-family: inherit;
+      line-height: 1.5;
+    }
+
+    /* カード下部のボタン行 */
+    .card-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .card-move-buttons {
+      display: flex;
+      gap: 4px;
+    }
+
+    /* 移動ボタン（←→） */
+    .btn-move {
+      background-color: #f4f5f7;
+      border: 1px solid #dfe1e6;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 13px;
+      cursor: pointer;
+      color: #5e6c84;
+    }
+
+    .btn-move:hover {
+      background-color: #dfe1e6;
+      color: #172b4d;
+    }
+
+    .btn-move:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    /* 削除ボタン（×） */
+    .btn-delete {
+      background: none;
+      border: none;
+      color: #97a0af;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      line-height: 1;
+    }
+
+    .btn-delete:hover {
+      background-color: #ffebe6;
+      color: #de350b;
+    }
+
+    /* ===== カード追加ボタン ===== */
+    .btn-add-card {
+      width: 100%;
+      background: none;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 14px;
+      color: #5e6c84;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    .btn-add-card:hover {
+      background-color: #c8c9cc;
+      color: #172b4d;
+    }
+
+    /* ===== カード追加フォーム ===== */
+    .add-card-form {
+      display: none; /* 最初は非表示 */
+      margin-top: 4px;
+    }
+
+    .add-card-form.active {
+      display: block;
+    }
+
+    .add-card-form textarea {
+      width: 100%;
+      border: 2px solid #0052cc;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      height: 72px;
+    }
+
+    .add-card-form-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 6px;
+    }
+
+    /* 確定ボタン */
+    .btn-confirm {
+      background-color: #0052cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .btn-confirm:hover {
+      background-color: #0065ff;
+    }
+
+    /* キャンセルボタン */
+    .btn-cancel {
+      background: none;
+      border: none;
+      color: #5e6c84;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 2px 6px;
+    }
+
+    .btn-cancel:hover {
+      color: #172b4d;
+    }
+
+    /* ===== 空カラムのメッセージ ===== */
+    .empty-message {
+      text-align: center;
+      color: #97a0af;
+      font-size: 13px;
+      padding: 12px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>📋 タスク管理ボード</h1>
+  </header>
+
+  <!-- ===== ボード本体 ===== -->
+  <!-- JavaScriptでここに列とカードを自動で生成します -->
+  <div id="board"></div>
+
+  <script>
+    // =============================================
+    // データ管理
+    // =============================================
+
+    // 3つの列の定義（idは内部管理用、titleは画面表示用）
+    const COLUMNS = [
+      { id: 'todo',       title: '未着手' },
+      { id: 'inprogress', title: '進行中' },
+      { id: 'done',       title: '完了'   },
+    ];
+
+    /**
+     * localStorageからカードデータを読み込む。
+     * 初回は空の配列を返す。
+     */
+    function loadCards() {
+      const saved = localStorage.getItem('trello-cards');
+      return saved ? JSON.parse(saved) : [];
+    }
+
+    /**
+     * カードデータをlocalStorageに保存する。
+     * ブラウザを閉じてもデータが消えないようにするための処理。
+     */
+    function saveCards(cards) {
+      localStorage.setItem('trello-cards', JSON.stringify(cards));
+    }
+
+    // アプリ全体で使うカードデータ（配列）
+    let cards = loadCards();
+
+    /**
+     * 新しいカードを作成して返す。
+     * idには現在時刻（ミリ秒）を使い、重複しないようにする。
+     */
+    function createCard(columnId, title) {
+      return {
+        id: Date.now(),      // 一意なID
+        columnId: columnId,  // どの列に属するか
+        title: title,        // タスクのタイトル
+      };
+    }
+
+
+    // =============================================
+    // 画面の描画（render）
+    // =============================================
+
+    /**
+     * ボード全体を描画し直す。
+     * データが変わるたびにこの関数を呼ぶ。
+     */
+    function render() {
+      const board = document.getElementById('board');
+      board.innerHTML = ''; // いったん全部消す
+
+      // 列ごとにHTMLを生成して追加する
+      COLUMNS.forEach((col, colIndex) => {
+        // この列に属するカードだけを取り出す
+        const colCards = cards.filter(c => c.columnId === col.id);
+
+        // 列のHTML要素を作成
+        const colEl = document.createElement('div');
+        colEl.className = 'column';
+        colEl.dataset.colId = col.id;
+
+        // 列のヘッダー（タイトル＋カード枚数）
+        colEl.innerHTML = `
+          <div class="column-header">
+            <span class="column-title">${col.title}</span>
+            <span class="card-count">${colCards.length}</span>
+          </div>
+          <div class="cards-container"></div>
+          <button class="btn-add-card" onclick="showAddForm('${col.id}')">＋ カードを追加</button>
+          <div class="add-card-form" id="form-${col.id}">
+            <textarea id="textarea-${col.id}" placeholder="タスクを入力..."></textarea>
+            <div class="add-card-form-actions">
+              <button class="btn-confirm" onclick="addCard('${col.id}')">追加</button>
+              <button class="btn-cancel" onclick="hideAddForm('${col.id}')">✕</button>
+            </div>
+          </div>
+        `;
+
+        // カードを追加していく
+        const container = colEl.querySelector('.cards-container');
+
+        if (colCards.length === 0) {
+          // カードが0枚のときはメッセージを表示
+          container.innerHTML = '<p class="empty-message">タスクがありません</p>';
+        } else {
+          colCards.forEach(card => {
+            container.appendChild(createCardElement(card, colIndex));
+          });
+        }
+
+        board.appendChild(colEl);
+      });
+    }
+
+    /**
+     * 1枚のカードのHTML要素を作って返す。
+     * colIndex: 現在の列が0番目、1番目、2番目のどれか（移動ボタンの表示制御に使う）
+     */
+    function createCardElement(card, colIndex) {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.dataset.cardId = card.id;
+
+      // 左移動ボタンは一番左の列では非表示
+      const leftDisabled  = colIndex === 0 ? 'disabled' : '';
+      // 右移動ボタンは一番右の列では非表示
+      const rightDisabled = colIndex === COLUMNS.length - 1 ? 'disabled' : '';
+
+      cardEl.innerHTML = `
+        <div class="card-title" onclick="startEdit(${card.id})">${escapeHtml(card.title)}</div>
+        <div class="card-actions">
+          <div class="card-move-buttons">
+            <button class="btn-move" onclick="moveCard(${card.id}, -1)" ${leftDisabled}>← 戻す</button>
+            <button class="btn-move" onclick="moveCard(${card.id},  1)" ${rightDisabled}>進める →</button>
+          </div>
+          <button class="btn-delete" onclick="deleteCard(${card.id})" title="削除">✕</button>
+        </div>
+      `;
+
+      return cardEl;
+    }
+
+    /**
+     * HTMLの特殊文字をエスケープする。
+     * ユーザーが入力した文字をそのままHTMLに入れると
+     * XSS（クロスサイトスクリプティング）攻撃の原因になるため必要。
+     */
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+
+    // =============================================
+    // カードの操作
+    // =============================================
+
+    /**
+     * カードを追加する。
+     * テキストエリアの内容を取り出して新しいカードを作る。
+     */
+    function addCard(columnId) {
+      const textarea = document.getElementById('textarea-' + columnId);
+      const title = textarea.value.trim(); // 前後の空白を除去
+
+      if (!title) {
+        alert('タスクのタイトルを入力してください。');
+        return;
+      }
+
+      const newCard = createCard(columnId, title);
+      cards.push(newCard);  // 配列に追加
+      saveCards(cards);     // localStorageに保存
+      render();             // 画面を再描画
+    }
+
+    /**
+     * カードを削除する。
+     * 確認ダイアログを出してからデータを削除する。
+     */
+    function deleteCard(cardId) {
+      if (!confirm('このタスクを削除しますか？')) return;
+
+      // idが一致しないカードだけ残す（= 一致するカードを除外する）
+      cards = cards.filter(c => c.id !== cardId);
+      saveCards(cards);
+      render();
+    }
+
+    /**
+     * カードを左右に移動する。
+     * direction: -1（左）または 1（右）
+     */
+    function moveCard(cardId, direction) {
+      const card = cards.find(c => c.id === cardId);
+      if (!card) return;
+
+      // 現在の列のインデックスを調べる
+      const currentIndex = COLUMNS.findIndex(col => col.id === card.columnId);
+      const newIndex = currentIndex + direction;
+
+      // 範囲外には移動しない
+      if (newIndex < 0 || newIndex >= COLUMNS.length) return;
+
+      // 列を更新して保存・再描画
+      card.columnId = COLUMNS[newIndex].id;
+      saveCards(cards);
+      render();
+    }
+
+    /**
+     * カードのタイトルを編集モードにする。
+     * タイトルのテキストをテキストエリアに変える。
+     */
+    function startEdit(cardId) {
+      const card = cards.find(c => c.id === cardId);
+      if (!card) return;
+
+      // カード要素を取得
+      const cardEl = document.querySelector(`.card[data-card-id="${cardId}"]`);
+      const titleEl = cardEl.querySelector('.card-title');
+
+      // テキストをテキストエリアに置き換える
+      titleEl.outerHTML = `
+        <textarea class="card-title-input" id="edit-${cardId}">${escapeHtml(card.title)}</textarea>
+      `;
+
+      const input = document.getElementById('edit-' + cardId);
+      input.focus();
+      input.select(); // テキストを全選択状態にする
+
+      // Enterキーで確定、Escapeキーでキャンセル
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          finishEdit(cardId);
+        }
+        if (e.key === 'Escape') {
+          render(); // キャンセルして元に戻す
+        }
+      });
+
+      // フォーカスが外れたら自動保存
+      input.addEventListener('blur', () => finishEdit(cardId));
+    }
+
+    /**
+     * カードの編集を確定する。
+     * テキストエリアの内容でカードのタイトルを更新する。
+     */
+    function finishEdit(cardId) {
+      const input = document.getElementById('edit-' + cardId);
+      if (!input) return; // すでに確定済みなら何もしない
+
+      const newTitle = input.value.trim();
+
+      if (!newTitle) {
+        render(); // 空なら変更しない
+        return;
+      }
+
+      // データを更新して保存
+      const card = cards.find(c => c.id === cardId);
+      if (card) {
+        card.title = newTitle;
+        saveCards(cards);
+      }
+      render();
+    }
+
+
+    // =============================================
+    // 追加フォームの表示・非表示
+    // =============================================
+
+    /** 追加フォームを表示して、テキストエリアにフォーカスを当てる */
+    function showAddForm(columnId) {
+      const form = document.getElementById('form-' + columnId);
+      form.classList.add('active');
+      document.getElementById('textarea-' + columnId).focus();
+    }
+
+    /** 追加フォームを非表示にしてテキストをクリアする */
+    function hideAddForm(columnId) {
+      const form = document.getElementById('form-' + columnId);
+      form.classList.remove('active');
+      document.getElementById('textarea-' + columnId).value = '';
+    }
+
+
+    // =============================================
+    // 起動
+    // =============================================
+
+    // ページが読み込まれたら最初に描画する
+    render();
+
+  </script>
+</body>
+</html>
